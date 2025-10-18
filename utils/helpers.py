@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import pandas as pd
+import hashlib
 
 DB_PATH = "database/keuangan.db"
 
@@ -10,6 +11,16 @@ def init_db():
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            kategori_pengguna TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,6 +35,51 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+
+def hash_password(password):
+    """Hash password using SHA256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def create_user(nama, email, password, kategori_pengguna):
+    """Create a new user"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        password_hash = hash_password(password)
+        cursor.execute("""
+            INSERT INTO users (nama, email, password_hash, kategori_pengguna)
+            VALUES (?, ?, ?, ?)
+        """, (nama, email, password_hash, kategori_pengguna))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False  # Email already exists
+
+def verify_user(email, password):
+    """Verify user credentials"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    password_hash = hash_password(password)
+    cursor.execute("""
+        SELECT nama, kategori_pengguna FROM users 
+        WHERE email = ? AND password_hash = ?
+    """, (email, password_hash))
+    result = cursor.fetchone()
+    conn.close()
+    return result  # Returns (nama, kategori_pengguna) if valid, None otherwise
+
+def get_user_info(email):
+    """Get user information"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT nama, kategori_pengguna FROM users WHERE email = ?
+    """, (email,))
+    result = cursor.fetchone()
+    conn.close()
+    return result
 
 def save_transaction(email, tanggal, kategori_pengguna, jenis, item, jumlah, catatan):
     conn = sqlite3.connect(DB_PATH)

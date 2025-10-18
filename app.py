@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-from utils.helpers import init_db, save_transaction, get_transactions
+from utils.helpers import init_db, save_transaction, get_transactions, verify_user, create_user
 from utils.export import export_to_csv, export_to_pdf
 from utils.ai import generate_financial_advice
 
@@ -17,6 +17,14 @@ if 'kategori_pengguna' not in st.session_state:
     st.session_state.kategori_pengguna = None
 if 'transaction_saved' not in st.session_state:
     st.session_state.transaction_saved = False
+if 'user_exists' not in st.session_state:
+    st.session_state.user_exists = False
+if 'show_login' not in st.session_state:
+    st.session_state.show_login = True  # True for login, False for registration
+if 'user_nama' not in st.session_state:
+    st.session_state.user_nama = ""
+if 'registration_success' not in st.session_state:
+    st.session_state.registration_success = False
 
 # ----------------------------
 # UI - LOGIN DAN PILIHAN USER
@@ -81,26 +89,57 @@ st.markdown("""
 
 if not st.session_state.logged_in:
     # Title for non-logged in users
-    st.markdown('<h1 class="main-header">📒 Smart Buku Keuangan</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🔒 Smart Buku Keuangan</h1>', unsafe_allow_html=True)
     
-    with st.container():
-        col1, col2, col3 = st.columns([2, 3, 2])
-        with col2:
-            st.subheader(" masuk untuk mulai mencatat keuanganmu", anchor=False)
-            with st.form("login_form"):
-                nama = st.text_input("Nama Lengkap")
-                email = st.text_input("Alamat Email")
-                kategori = st.selectbox("Kategori Pengguna", 
-                    ["Keluarga", "Pribadi", "Siswa/Mahasiswa", "Pedagang", "UMKM", "Pengusaha", "Pebisnis"])
-                submit = st.form_submit_button("Masuk 📝", use_container_width=True, type="primary")
+    # Tabs for login and registration
+    login_tab, register_tab = st.tabs(["🔐 Masuk", "📝 Daftar"])
+    
+    with login_tab:
+        with st.form("login_form"):
+            email = st.text_input("Alamat Email", key="login_email")
+            password = st.text_input("Password", type="password", key="login_password")
+            submit_login = st.form_submit_button("Masuk 📝", use_container_width=True, type="primary")
 
-                if submit and nama and email:
+            if submit_login and email and password:
+                # Verify user credentials
+                user_info = verify_user(email, password)
+                if user_info:
+                    nama, kategori_pengguna = user_info
                     st.session_state.logged_in = True
                     st.session_state.nama = nama
                     st.session_state.email = email
-                    st.session_state.kategori_pengguna = kategori
-                    st.success(f"🎉 Selamat datang, {nama}! Anda terdaftar sebagai {kategori}.")
+                    st.session_state.kategori_pengguna = kategori_pengguna
+                    st.session_state.menu = "Beranda"  # Set default menu to Beranda
+                    st.success(f"🎉 Selamat datang kembali, {nama}!")
                     st.rerun()
+                else:
+                    st.error("Email atau password salah!")
+    
+    # Check if registration was successful and show success message
+    if 'registration_success' in st.session_state and st.session_state.registration_success:
+        st.success("🎉 Berhasil Daftar, Silahkan Login")
+        if st.button("Ke Halaman Login", use_container_width=True, type="primary"):
+            st.session_state.show_login = True
+            st.session_state.registration_success = False
+            st.rerun()
+    else:
+        with register_tab:
+            with st.form("register_form"):
+                nama = st.text_input("Nama Lengkap", key="reg_nama")
+                email = st.text_input("Alamat Email", key="reg_email")
+                password = st.text_input("Password", type="password", key="reg_password")
+                kategori = st.selectbox("Kategori Pengguna", 
+                    ["Keluarga", "Pribadi", "Siswa/Mahasiswa", "Pedagang", "UMKM", "Pengusaha", "Pebisnis"], key="reg_kategori")
+                submit_register = st.form_submit_button("Daftar Sekarang", use_container_width=True, type="secondary")
+
+                if submit_register and nama and email and password:
+                    # Create new user
+                    from utils.helpers import create_user
+                    if create_user(nama, email, password, kategori):
+                        st.session_state.registration_success = True
+                        st.rerun()
+                    else:
+                        st.error("Email sudah terdaftar! Silakan gunakan email lain.")
 
 else:
     # Sidebar with title, user information and navigation
@@ -133,6 +172,15 @@ else:
             st.session_state.menu = "AI Assistant"
         if st.button("📤 Export Data", use_container_width=True):
             st.session_state.menu = "Export Data"
+        
+        st.divider()  # Add separator before logout
+        
+        # Logout button
+        if st.button("🔒 Logout", use_container_width=True, type="secondary"):
+            # Clear session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
         
         # Initialize session state for menu if not exists
         if 'menu' not in st.session_state:
@@ -172,8 +220,11 @@ else:
             st.dataframe(df.tail(5), use_container_width=True)
             
         else:
-            st.info("Belum ada data keuangan. Silakan input data terlebih dahulu di menu 'Input Data'.")
-            st.image("https://cdn.pixabay.com/photo/2017/03/19/11/16/freedom-2156377_1280.png", caption="Mulai kelola keuanganmu sekarang!", use_container_width=True)
+            st.info("Belum ada data keuangan.")
+            # Button that redirects to input data page
+            if st.button("➕ Input Data Keuangan", use_container_width=True, type="primary"):
+                st.session_state.menu = "Input Data"
+                st.rerun()
 
     elif menu == "Input Data":
         st.markdown('<h1 class="sub-header">➕ Input Data Keuangan</h1>', unsafe_allow_html=True)
@@ -198,13 +249,18 @@ else:
                 st.session_state.transaction_saved = True
                 st.success("✅ Data berhasil disimpan!")
 
+        # Add button to see all records after successful save (outside the form)
+        if st.session_state.transaction_saved:
+            if st.button("📋 Lihat Catatan Keuangan", use_container_width=True, type="secondary"):
+                st.session_state.menu = "Lihat Catatan"
+                st.rerun()
+
     elif menu == "Lihat Catatan":
         st.markdown('<h1 class="sub-header">📋 Riwayat Catatan Keuangan</h1>', unsafe_allow_html=True)
         df = get_transactions(st.session_state.email)
         
         if df.empty:
             st.info("Belum ada data keuangan.")
-            st.image("https://cdn.pixabay.com/photo/2015/05/28/14/28/accounting-788125_1280.jpg", caption="Belum ada data keuangan", use_container_width=True)
         else:
             # Summary section
             total_pemasukan = df[df['Jenis'] == 'Pemasukan']['Jumlah'].sum()
@@ -234,8 +290,7 @@ else:
         
         df = get_transactions(st.session_state.email)
         if df.empty:
-            st.info("Belum ada data keuangan untuk dianalisis.")
-            st.image("https://cdn.pixabay.com/photo/2016/11/14/16/17/chart-1823758_1280.jpg", caption="Belum ada data untuk analisis", use_container_width=True)
+            st.info("Belum ada data untuk dianalisis.")
         else:
             df["Tanggal"] = pd.to_datetime(df["Tanggal"])
             
@@ -320,7 +375,6 @@ else:
         df = get_transactions(st.session_state.email)
         if df.empty:
             st.info("Masukkan data terlebih dahulu untuk mendapatkan saran keuangan otomatis.")
-            st.image("https://cdn.pixabay.com/photo/2017/03/18/20/30/robot-2155399_1280.png", caption="AI Assistant", use_container_width=True)
         else:
             with st.spinner("AI sedang menganalisis keuangan Anda..."):
                 advice = generate_financial_advice(df, st.session_state.kategori_pengguna)
@@ -332,7 +386,6 @@ else:
         df = get_transactions(st.session_state.email)
         if df.empty:
             st.info("Tidak ada data untuk diekspor.")
-            st.image("https://cdn.pixabay.com/photo/2016/12/27/15/15/lock-1934243_1280.jpg", caption="Tidak ada data untuk diekspor", use_container_width=True)
         else:
             # Summary information
             total_pemasukan = df[df['Jenis'] == 'Pemasukan']['Jumlah'].sum()
