@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import pandas as pd
 
 DB_PATH = "database/keuangan.db"
 
@@ -35,12 +36,13 @@ def save_transaction(email, tanggal, kategori_pengguna, jenis, item, jumlah, cat
     conn.close()
 
 def get_transactions(email):
+    import pandas as pd
     conn = sqlite3.connect(DB_PATH)
     df = None
     try:
         df = pd.read_sql_query("SELECT tanggal AS Tanggal, jenis AS Jenis, item AS Item, jumlah AS Jumlah, catatan AS Catatan FROM transactions WHERE email = ?", conn, params=(email,))
     except Exception as e:
         print("Error membaca data:", e)
-        df = pd.DataFrame()
+        df = pd.DataFrame(columns=["Tanggal", "Jenis", "Item", "Jumlah", "Catatan"])
     conn.close()
     return df
