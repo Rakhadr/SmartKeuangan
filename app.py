@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
 import datetime
 from utils.helpers import init_db, save_transaction, get_transactions, verify_user, create_user
 from utils.export import export_to_csv, export_to_pdf
@@ -86,6 +85,20 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Hide Streamlit elements including GitHub icon
+hide_st_style = """
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+#GithubIcon {visibility: hidden;}
+.css-1jc7ptx, .e1ewe7hr3, .viewerBadge_container__1QSob,
+.styles_viewerBadge__1yB5_, .viewerBadge_link__1S137,
+.viewerBadge_text__1JaDK { display: none; }
+</style>
+"""
+st.markdown(hide_st_style, unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     # Title for non-logged in users
