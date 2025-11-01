@@ -32,12 +32,28 @@ if 'registration_success' not in st.session_state:
 st.set_page_config(
     page_title="Smart Buku Keuangan",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
 # Custom CSS to improve the UI
 st.markdown("""
 <style>
+    /* Hide Streamlit's default menu and footer */
+    #MainMenu {
+        visibility: hidden;
+    }
+    footer {
+        visibility: hidden;
+    }
+    header {
+        visibility: hidden;
+    }
+    
     .main-header {
         font-size: 1.5rem;
         color: #2c3e50;
