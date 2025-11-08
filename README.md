@@ -5,6 +5,7 @@ Smart Buku Keuangan adalah aplikasi pencatatan keuangan berbasis web menggunakan
 ## ✨ Fitur Utama
 
 - ✅ **Input data keuangan** - Catat pemasukan, pengeluaran, tabungan, hutang, dan transaksi lainnya
+- 🎤 **Input suara** - Rekam suara untuk input data keuangan otomatis
 - 📊 **Visualisasi data** - Grafik pemasukan vs pengeluaran yang interaktif
 - 🤖 **AI Assistant** - Saran keuangan otomatis berbasis OpenAI
 - 📤 **Export data** - Ekspor laporan ke format CSV dan PDF
@@ -74,11 +75,10 @@ Aplikasi akan berjalan di browser Anda di `http://localhost:8501`
 
 2. **Input Data**
    - Pilih menu "Input Data" di sidebar
-   - Masukkan tanggal transaksi
-   - Pilih jenis transaksi (Pemasukan, Pengeluaran, Tabungan, Hutang, Lainnya)
-   - Isi jumlah uang dan deskripsi
-   - Tambahkan catatan tambahan jika perlu
-   - Klik "Simpan Transaksi"
+   - Pilih antara input suara atau input manual:
+     - **Input Suara**: Tekan tombol "Rekam Suara" dan ucapkan transaksi keuangan Anda (misalnya: "Pengeluaran belanja Rp50.000 untuk makanan")
+     - **Input Manual**: Masukkan tanggal transaksi, pilih jenis transaksi (Pemasukan, Pengeluaran, Tabungan, Hutang, Lainnya), isi jumlah uang dan deskripsi, tambahkan catatan tambahan jika perlu
+   - Klik "Simpan Transaksi" untuk menyimpan data
 
 3. **Lihat dan Analisis Data**
    - Gunakan menu "Lihat Catatan" untuk melihat riwayat transaksi
@@ -104,7 +104,8 @@ Keuangan-Pintar/
 └── utils/
     ├── helpers.py       # Fungsi bantuan untuk database
     ├── export.py        # Fungsi ekspor data
-    └── ai.py            # Logika AI Assistant
+    ├── ai.py            # Logika AI Assistant
+    └── voice_input.py   # Fungsi input suara untuk data keuangan
 ```
 
 ## 📦 Dependencies

@@ -2,17 +2,26 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
+import calendar
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from utils.helpers import init_db, save_transaction, get_transactions, verify_user, create_user
 from utils.export import export_to_csv, export_to_pdf
 from utils.ai import generate_financial_advice
+from utils.voice_input import voice_input_form
 
 # ----------------------------
 # Inisialisasi DB dan Session
 # ----------------------------
 init_db()
 
+# Initialize session state variables with proper defaults
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
+if 'email' not in st.session_state:
+    st.session_state.email = ""
+if 'nama' not in st.session_state:
+    st.session_state.nama = ""
 if 'kategori_pengguna' not in st.session_state:
     st.session_state.kategori_pengguna = None
 if 'transaction_saved' not in st.session_state:
@@ -25,6 +34,22 @@ if 'user_nama' not in st.session_state:
     st.session_state.user_nama = ""
 if 'registration_success' not in st.session_state:
     st.session_state.registration_success = False
+if 'menu' not in st.session_state:
+    st.session_state.menu = "Beranda"
+
+# Validate user session after initialization, if email exists but user isn't logged in
+from utils.helpers import get_user_info
+
+if st.session_state.email and not st.session_state.logged_in:
+    user_info = get_user_info(st.session_state.email)
+    if user_info:
+        # User is valid, ensure they stay logged in
+        st.session_state.logged_in = True
+        st.session_state.nama = user_info[0]
+        st.session_state.kategori_pengguna = user_info[1]
+        # Preserve the current menu if it exists
+        if 'menu' not in st.session_state:
+            st.session_state.menu = "Beranda"
 
 # ----------------------------
 # UI - LOGIN DAN PILIHAN USER
@@ -50,7 +75,7 @@ st.markdown("""
     footer {
         visibility: hidden;
     }
-    header {
+    header[data-testid="stHeader"] {
         visibility: hidden;
     }
     
@@ -99,6 +124,13 @@ st.markdown("""
     }
     .small-text {
         font-size: 0.9rem;
+    }
+    
+    /* Mobile adjustments */
+    @media (max-width: 600px) {
+        .block-container {
+            padding-top: 3rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -198,11 +230,47 @@ else:
                 del st.session_state[key]
             st.rerun()
         
-        # Initialize session state for menu if not exists
-        if 'menu' not in st.session_state:
-            st.session_state.menu = "Beranda"
-        
         menu = st.session_state.menu
+
+    # Main content area
+    
+    # Floating bottom navigation for mobile
+    if st.session_state.logged_in:
+        # Mobile burger menu for navigation using Streamlit expander
+        if st.session_state.logged_in:
+            # Use Streamlit's expander as a mobile menu
+            with st.popover("☰", use_container_width=False):
+                st.write("Navigasi")
+                
+                if st.button("🏠 Beranda", use_container_width=True):
+                    st.session_state.menu = "Beranda"
+                    st.rerun()
+                
+                if st.button("➕ Input Data", use_container_width=True):
+                    st.session_state.menu = "Input Data"
+                    st.rerun()
+                
+                if st.button("📋 Lihat Catatan", use_container_width=True):
+                    st.session_state.menu = "Lihat Catatan"
+                    st.rerun()
+                
+                if st.button("📊 Grafik & Insight", use_container_width=True):
+                    st.session_state.menu = "Grafik & Insight"
+                    st.rerun()
+                
+                if st.button("🤖 AI Assistant", use_container_width=True):
+                    st.session_state.menu = "AI Assistant"
+                    st.rerun()
+                
+                if st.button("📤 Export Data", use_container_width=True):
+                    st.session_state.menu = "Export Data"
+                    st.rerun()
+                
+                if st.button("🔒 Logout", use_container_width=True):
+                    # Clear session state
+                    for key in list(st.session_state.keys()):
+                        del st.session_state[key]
+                    st.rerun()
 
     # Main content area
     if menu == "Beranda":
@@ -246,24 +314,23 @@ else:
         st.markdown('<h1 class="sub-header">➕ Input Data Keuangan</h1>', unsafe_allow_html=True)
         kategori = st.session_state.kategori_pengguna
         
-        # Input form with better layout
-        with st.form("form_input", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                tanggal = st.date_input("Tanggal", datetime.date.today())
-                jenis = st.selectbox("Jenis Transaksi", ["Pemasukan", "Pengeluaran", "Tabungan", "Hutang", "Lainnya"])
-            with col2:
-                nilai = st.number_input("Jumlah (Rp)", min_value=0, format="%d")
-            
-            item = st.text_input("Deskripsi Item")
-            catatan = st.text_area("Catatan Tambahan")
-            
-            simpan = st.form_submit_button("Simpan Transaksi 💰", use_container_width=True, type="primary")
-
-            if simpan:
-                save_transaction(st.session_state.email, tanggal, kategori, jenis, item, nilai, catatan)
-                st.session_state.transaction_saved = True
-                st.success("✅ Data berhasil disimpan!")
+        # Get input data using voice input form that includes both voice and manual options
+        input_data = voice_input_form()
+        
+        # If data was captured (either from voice or manual), save it
+        if input_data:
+            # Save the transaction
+            save_transaction(
+                st.session_state.email, 
+                input_data['date'], 
+                kategori, 
+                input_data['type'], 
+                input_data['description'], 
+                input_data['amount'], 
+                input_data['notes']
+            )
+            st.session_state.transaction_saved = True
+            st.success("✅ Data berhasil disimpan!")
 
         # Add button to see all records after successful save (outside the form)
         if st.session_state.transaction_saved:
@@ -313,17 +380,18 @@ else:
             # Set default date range to current month
             today = datetime.date.today()
             first_day_current_month = today.replace(day=1)
-            last_day_current_month = today  # Use today as end date if it's within current month
             
-            # Check if current month has data, if not, use the min/max dates from available data
-            current_month_data = df[(df["Tanggal"].dt.year == today.year) & (df["Tanggal"].dt.month == today.month)]
-            if not current_month_data.empty:
-                start_date_default = first_day_current_month
-                end_date_default = today
+            # Calculate the last day of current month
+            if today.month == 12:
+                last_day_current_month = today.replace(day=31)
             else:
-                # If no current month data, use the available data range
-                start_date_default = df["Tanggal"].min().date()
-                end_date_default = df["Tanggal"].max().date()
+                # Get first day of next month, then subtract one day
+                days_in_month = calendar.monthrange(today.year, today.month)[1]
+                last_day_current_month = today.replace(day=days_in_month)
+            
+            # Default to current month (1st to last day of month)
+            start_date_default = first_day_current_month
+            end_date_default = last_day_current_month
             
             # Time range filter - default to current month
             date_range = st.date_input("Pilih Rentang Tanggal", value=[start_date_default, end_date_default])
@@ -364,13 +432,34 @@ else:
                     "Pengeluaran": pengeluaran
                 }).fillna(0)
                 
-                # Display chart based on selection
+                # Create chart using Plotly for better date formatting
+                dates = chart_data.index
+                fig = go.Figure()
+                
                 if chart_type == "Garis":
-                    st.line_chart(chart_data)
+                    fig.add_trace(go.Scatter(x=dates, y=chart_data["Pemasukan"], mode='lines+markers', name='Pemasukan', line=dict(color='#2ecc71')))
+                    fig.add_trace(go.Scatter(x=dates, y=chart_data["Pengeluaran"], mode='lines+markers', name='Pengeluaran', line=dict(color='#e74c3c')))
                 elif chart_type == "Batang":
-                    st.bar_chart(chart_data)
-                else:
-                    st.area_chart(chart_data)
+                    fig.add_trace(go.Bar(x=dates, y=chart_data["Pemasukan"], name='Pemasukan', marker_color='#2ecc71'))
+                    fig.add_trace(go.Bar(x=dates, y=chart_data["Pengeluaran"], name='Pengeluaran', marker_color='#e74c3c'))
+                else:  # Area
+                    fig.add_trace(go.Scatter(x=dates, y=chart_data["Pemasukan"], mode='lines', fill='tonexty', name='Pemasukan', line=dict(color='#2ecc71', width=0), fillcolor='rgba(46, 204, 113, 0.2)'))
+                    fig.add_trace(go.Scatter(x=dates, y=chart_data["Pengeluaran"], mode='lines', fill='tonexty', name='Pengeluaran', line=dict(color='#e74c3c', width=0), fillcolor='rgba(231, 76, 60, 0.2)'))
+                
+                # Update layout with date formatting
+                fig.update_layout(
+                    title="Analisis Pemasukan dan Pengeluaran",
+                    xaxis_title="Tanggal",
+                    yaxis_title="Jumlah (Rp)",
+                    xaxis=dict(
+                        tickformat="%d %B",  # Format: Day Month (e.g., 01 Januari)
+                        dtick="D1",  # Show daily ticks
+                    ),
+                    hovermode='x unified',
+                    template='plotly_white'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
                 
                 # Additional insights
                 st.subheader("Insight")

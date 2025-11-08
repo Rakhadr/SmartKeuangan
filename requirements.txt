@@ -2,3 +2,6 @@ streamlit
 pandas
 fpdf
 openai
+plotly
+SpeechRecognition
+pyaudio
