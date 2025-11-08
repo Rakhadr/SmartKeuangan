@@ -2,6 +2,6 @@ streamlit
 pandas
 fpdf
 openai
-plotly
+plotly>=5.0.0
 SpeechRecognition
 pyaudio

@@ -148,6 +148,14 @@ Daftar dependencies utama:
 streamlit run app.py --server.port 80 --server.headless true
 ```
 
+### Catatan untuk Deployment (Termasuk Streamlit Sharing)
+Fitur input suara menggunakan modul `pyaudio` yang memerlukan akses mikrofon dan library sistem `portaudio`. Beberapa platform deployment (seperti Streamlit Sharing) membatasi akses perangkat keras, sehingga:
+
+1. Di lingkungan deployment tanpa akses mikrofon, fitur rekam suara akan otomatis dinonaktifkan
+2. Aplikasi akan menyediakan input teks sebagai alternatif untuk mensimulasikan input suara
+3. Pastikan `plotly` terdaftar di `requirements.txt` untuk visualisasi grafik
+4. Untuk local development: `pip install pyaudio` (mungkin perlu `brew install portaudio` di macOS)
+
 ## 🔐 Konfigurasi Security untuk Production
 
 - Gunakan HTTPS

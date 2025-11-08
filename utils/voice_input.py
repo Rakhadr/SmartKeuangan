@@ -5,39 +5,57 @@ import os
 from datetime import datetime, date
 import re
 
+# Optional import for PyAudio (required for microphone access)
+try:
+    import pyaudio
+    PYAUDIO_AVAILABLE = True
+except ImportError:
+    PYAUDIO_AVAILABLE = False
+
 def voice_to_text():
     """
     Function to convert voice input to text using speech recognition
     """
+    # Check if PyAudio is available (required for microphone access)
+    if not PYAUDIO_AVAILABLE:
+        st.error("Modul PyAudio tidak tersedia. Fitur rekam suara tidak dapat digunakan di lingkungan ini.")
+        st.info("Fitur rekam suara memerlukan akses mikrofon yang tidak tersedia di semua platform deploy.")
+        return None
+    
     r = sr.Recognizer()
     
     # Create a placeholder for status updates
     status_placeholder = st.empty()
     
-    # Use the default microphone as the audio source
-    with sr.Microphone() as source:
-        status_placeholder.info("Mendengarkan... Silakan bicara sekarang.")
-        
-        # Adjust for ambient noise and record
-        r.adjust_for_ambient_noise(source)
-        try:
-            # Listen for audio with timeout
-            audio = r.listen(source, timeout=5, phrase_time_limit=10)
-            status_placeholder.info("Mengenali suara...")
+    try:
+        # Use the default microphone as the audio source
+        with sr.Microphone() as source:
+            status_placeholder.info("Mendengarkan... Silakan bicara sekarang.")
             
-            # Try to recognize the speech using Google's speech recognition
-            text = r.recognize_google(audio, language="id-ID")  # Using Indonesian language
-            status_placeholder.success("Berhasil mengenali suara!")
-            return text
-        except sr.WaitTimeoutError:
-            status_placeholder.error("Tidak ada suara terdeteksi dalam waktu yang ditentukan.")
-            return None
-        except sr.UnknownValueError:
-            status_placeholder.error("Tidak dapat mengenali suara. Silakan coba lagi.")
-            return None
-        except sr.RequestError as e:
-            status_placeholder.error(f"Kesalahan pada layanan pengenalan suara: {str(e)}")
-            return None
+            # Adjust for ambient noise and record
+            r.adjust_for_ambient_noise(source)
+            try:
+                # Listen for audio with timeout
+                audio = r.listen(source, timeout=5, phrase_time_limit=10)
+                status_placeholder.info("Mengenali suara...")
+                
+                # Try to recognize the speech using Google's speech recognition
+                text = r.recognize_google(audio, language="id-ID")  # Using Indonesian language
+                status_placeholder.success("Berhasil mengenali suara!")
+                return text
+            except sr.WaitTimeoutError:
+                status_placeholder.error("Tidak ada suara terdeteksi dalam waktu yang ditentukan.")
+                return None
+            except sr.UnknownValueError:
+                status_placeholder.error("Tidak dapat mengenali suara. Silakan coba lagi.")
+                return None
+            except sr.RequestError as e:
+                status_placeholder.error(f"Kesalahan pada layanan pengenalan suara: {str(e)}")
+                return None
+    except Exception as e:
+        status_placeholder.error(f"Gagal mengakses mikrofon: {str(e)}")
+        st.info("Fitur rekam suara memerlukan akses mikrofon yang mungkin tidak tersedia di semua platform deploy.")
+        return None
 
 def extract_financial_data_from_text(text):
     """
@@ -123,7 +141,52 @@ def voice_input_interface():
     """
     st.subheader("🎤 Input Suara untuk Data Keuangan")
     
-    # Create button for voice recording
+    # Check if PyAudio is available
+    if not PYAUDIO_AVAILABLE:
+        st.warning("Fitur rekam suara tidak tersedia di lingkungan ini karena modul PyAudio tidak ditemukan.")
+        st.info("Untuk menggunakan fitur rekam suara, aplikasi harus dijalankan secara lokal dengan PyAudio terinstal.")
+        # Provide a text input as fallback
+        with st.form("voice_input_fallback"):
+            voice_text = st.text_area("Masukkan transaksi dalam bentuk teks (sebagai simulasi suara):", 
+                                    placeholder="Contoh: Pengeluaran belanja Rp50.000 untuk makanan")
+            submit = st.form_submit_button("Proses Teks sebagai Suara")
+            
+            if submit and voice_text:
+                st.success(f"Memproses teks sebagai input suara: {voice_text}")
+                
+                # Extract financial data from text input (simulating voice input)
+                transaction_type, amount, description, category, notes = extract_financial_data_from_text(voice_text)
+                
+                # Display extracted data
+                if transaction_type:
+                    st.subheader("📊 Data Terekam:")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        selected_type = st.selectbox("Jenis Transaksi", 
+                                                   ["Pemasukan", "Pengeluaran", "Tabungan", "Hutang", "Lainnya"],
+                                                   index=["Pemasukan", "Pengeluaran", "Tabungan", "Hutang", "Lainnya"].index(transaction_type) if transaction_type in ["Pemasukan", "Pengeluaran", "Tabungan", "Hutang", "Lainnya"] else 0)
+                    with col2:
+                        entered_amount = st.number_input("Jumlah (Rp)", min_value=0, value=amount, format="%d")
+                    
+                    entered_description = st.text_input("Deskripsi Item", value=description)
+                    entered_notes = st.text_area("Catatan Tambahan", value=notes)
+                    
+                    # Use today's date
+                    entered_date = date.today()
+                    
+                    return {
+                        'date': entered_date,
+                        'type': selected_type,
+                        'amount': entered_amount,
+                        'description': entered_description,
+                        'notes': entered_notes
+                    }
+                else:
+                    st.error("Tidak dapat mengekstrak data keuangan dari teks yang dimasukkan.")
+        return None
+    
+    # Create button for voice recording (only when PyAudio is available)
     if st.button("🔊 Rekam Suara"):
         with st.spinner("Menyiapkan mikrofon..."):
             # Capture voice input

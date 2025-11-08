@@ -3,12 +3,33 @@ import pandas as pd
 import sqlite3
 import datetime
 import calendar
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+
+# Try to import plotly with error handling for deployment environments
+try:
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    go = None
+    make_subplots = None
+    st.error("Modul plotly tidak tersedia. Beberapa fitur grafik mungkin tidak berfungsi.")
+
 from utils.helpers import init_db, save_transaction, get_transactions, verify_user, create_user
 from utils.export import export_to_csv, export_to_pdf
 from utils.ai import generate_financial_advice
-from utils.voice_input import voice_input_form
+
+# Import voice input with error handling
+try:
+    from utils.voice_input import voice_input_form
+    VOICE_INPUT_AVAILABLE = True
+except ImportError as e:
+    st.error(f"Gagal mengimpor modul voice input: {e}")
+    VOICE_INPUT_AVAILABLE = False
+    # Define a fallback function
+    def voice_input_form():
+        st.error("Modul voice input tidak tersedia.")
+        return None
 
 # ----------------------------
 # Inisialisasi DB dan Session
@@ -418,48 +439,61 @@ else:
                 with col3:
                     st.metric("Saldo", f"Rp{saldo:,.0f}")
                 
-                # Chart options
-                chart_type = st.selectbox("Pilih Jenis Grafik", ["Garis", "Batang", "Area"])
-                
-                # Prepare data for charts - group by day to show daily data points on x-axis
-                filtered_df['Tanggal_only'] = filtered_df['Tanggal'].dt.date
-                pemasukan = filtered_df[filtered_df["Jenis"] == "Pemasukan"].groupby("Tanggal_only")["Jumlah"].sum()
-                pengeluaran = filtered_df[filtered_df["Jenis"] == "Pengeluaran"].groupby("Tanggal_only")["Jumlah"].sum()
-                
-                # Create combined dataframe
-                chart_data = pd.DataFrame({
-                    "Pemasukan": pemasukan,
-                    "Pengeluaran": pengeluaran
-                }).fillna(0)
-                
-                # Create chart using Plotly for better date formatting
-                dates = chart_data.index
-                fig = go.Figure()
-                
-                if chart_type == "Garis":
-                    fig.add_trace(go.Scatter(x=dates, y=chart_data["Pemasukan"], mode='lines+markers', name='Pemasukan', line=dict(color='#2ecc71')))
-                    fig.add_trace(go.Scatter(x=dates, y=chart_data["Pengeluaran"], mode='lines+markers', name='Pengeluaran', line=dict(color='#e74c3c')))
-                elif chart_type == "Batang":
-                    fig.add_trace(go.Bar(x=dates, y=chart_data["Pemasukan"], name='Pemasukan', marker_color='#2ecc71'))
-                    fig.add_trace(go.Bar(x=dates, y=chart_data["Pengeluaran"], name='Pengeluaran', marker_color='#e74c3c'))
-                else:  # Area
-                    fig.add_trace(go.Scatter(x=dates, y=chart_data["Pemasukan"], mode='lines', fill='tonexty', name='Pemasukan', line=dict(color='#2ecc71', width=0), fillcolor='rgba(46, 204, 113, 0.2)'))
-                    fig.add_trace(go.Scatter(x=dates, y=chart_data["Pengeluaran"], mode='lines', fill='tonexty', name='Pengeluaran', line=dict(color='#e74c3c', width=0), fillcolor='rgba(231, 76, 60, 0.2)'))
-                
-                # Update layout with date formatting
-                fig.update_layout(
-                    title="Analisis Pemasukan dan Pengeluaran",
-                    xaxis_title="Tanggal",
-                    yaxis_title="Jumlah (Rp)",
-                    xaxis=dict(
-                        tickformat="%d %B",  # Format: Day Month (e.g., 01 Januari)
-                        dtick="D1",  # Show daily ticks
-                    ),
-                    hovermode='x unified',
-                    template='plotly_white'
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
+                if PLOTLY_AVAILABLE:
+                    # Chart options
+                    chart_type = st.selectbox("Pilih Jenis Grafik", ["Garis", "Batang", "Area"])
+                    
+                    # Prepare data for charts - group by day to show daily data points on x-axis
+                    filtered_df['Tanggal_only'] = filtered_df['Tanggal'].dt.date
+                    pemasukan = filtered_df[filtered_df["Jenis"] == "Pemasukan"].groupby("Tanggal_only")["Jumlah"].sum()
+                    pengeluaran = filtered_df[filtered_df["Jenis"] == "Pengeluaran"].groupby("Tanggal_only")["Jumlah"].sum()
+                    
+                    # Create combined dataframe
+                    chart_data = pd.DataFrame({
+                        "Pemasukan": pemasukan,
+                        "Pengeluaran": pengeluaran
+                    }).fillna(0)
+                    
+                    # Create chart using Plotly for better date formatting
+                    dates = chart_data.index
+                    fig = go.Figure()
+                    
+                    if chart_type == "Garis":
+                        fig.add_trace(go.Scatter(x=dates, y=chart_data["Pemasukan"], mode='lines+markers', name='Pemasukan', line=dict(color='#2ecc71')))
+                        fig.add_trace(go.Scatter(x=dates, y=chart_data["Pengeluaran"], mode='lines+markers', name='Pengeluaran', line=dict(color='#e74c3c')))
+                    elif chart_type == "Batang":
+                        fig.add_trace(go.Bar(x=dates, y=chart_data["Pemasukan"], name='Pemasukan', marker_color='#2ecc71'))
+                        fig.add_trace(go.Bar(x=dates, y=chart_data["Pengeluaran"], name='Pengeluaran', marker_color='#e74c3c'))
+                    else:  # Area
+                        fig.add_trace(go.Scatter(x=dates, y=chart_data["Pemasukan"], mode='lines', fill='tonexty', name='Pemasukan', line=dict(color='#2ecc71', width=0), fillcolor='rgba(46, 204, 113, 0.2)'))
+                        fig.add_trace(go.Scatter(x=dates, y=chart_data["Pengeluaran"], mode='lines', fill='tonexty', name='Pengeluaran', line=dict(color='#e74c3c', width=0), fillcolor='rgba(231, 76, 60, 0.2)'))
+                    
+                    # Update layout with date formatting
+                    fig.update_layout(
+                        title="Analisis Pemasukan dan Pengeluaran",
+                        xaxis_title="Tanggal",
+                        yaxis_title="Jumlah (Rp)",
+                        xaxis=dict(
+                            tickformat="%d %B",  # Format: Day Month (e.g., 01 Januari)
+                            dtick="D1",  # Show daily ticks
+                        ),
+                        hovermode='x unified',
+                        template='plotly_white'
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("Modul plotly tidak tersedia. Menampilkan grafik menggunakan alternatif...")
+                    
+                    # Use Streamlit's built-in charting as fallback
+                    # Prepare data for charts - group by day to show daily data points
+                    filtered_df['Tanggal_only'] = filtered_df['Tanggal'].dt.date
+                    chart_data = filtered_df.groupby(['Tanggal_only', 'Jenis'])['Jumlah'].sum().unstack(fill_value=0)
+                    
+                    # Rename columns to English for Streamlit compatibility
+                    chart_data.columns = [col.replace('Pemasukan', 'Pemasukan').replace('Pengeluaran', 'Pengeluaran') for col in chart_data.columns]
+                    
+                    st.line_chart(chart_data)
                 
                 # Additional insights
                 st.subheader("Insight")
