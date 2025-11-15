@@ -141,6 +141,22 @@ def voice_input_interface():
     """
     st.subheader("🎤 Input Suara untuk Data Keuangan")
     
+    # Add instructions for voice input
+    '''
+    with st.expander("ℹ️ Petunjuk Input Suara", expanded=True):
+        st.markdown("""
+        **Cara menggunakan input suara:**
+        1. Tekan tombol "🔊 Rekam Suara" 
+        2. Sebutkan **JENIS TRANSAKSI** dan **NOMINAL UANG** dalam bahasa Indonesia:
+           - **Jenis transaksi** (pemasukan/pengeluaran/tabungan/hutang)
+           - **Jumlah uang** (misalnya: satu juta, seratus ribu, lima puluh ribu)
+        
+        **Contoh:** "pengeluaran, satu juta" atau "pemasukan, dua juta"
+        
+        ⚠️ Pastikan lingkungan sekitar cukup tenang dan suara Anda jelas terdengar.
+        """)
+    '''
+        
     # Check if PyAudio is available
     if not PYAUDIO_AVAILABLE:
         st.warning("Fitur rekam suara tidak tersedia di lingkungan ini karena modul PyAudio tidak ditemukan.")
@@ -148,7 +164,7 @@ def voice_input_interface():
         # Provide a text input as fallback
         with st.form("voice_input_fallback"):
             voice_text = st.text_area("Masukkan transaksi dalam bentuk teks (sebagai simulasi suara):", 
-                                    placeholder="Contoh: Pengeluaran belanja Rp50.000 untuk makanan")
+                                    placeholder="Contoh: pengeluaran satu juta")
             submit = st.form_submit_button("Proses Teks sebagai Suara")
             
             if submit and voice_text:
@@ -170,7 +186,8 @@ def voice_input_interface():
                         entered_amount = st.number_input("Jumlah (Rp)", min_value=0, value=amount, format="%d")
                     
                     entered_description = st.text_input("Deskripsi Item", value=description)
-                    entered_notes = st.text_area("Catatan Tambahan", value=notes)
+                    # Use the original voice input as notes
+                    entered_notes = st.text_area("Catatan Tambahan", value=notes, help="Catatan akan diisi otomatis dari input suara")
                     
                     # Use today's date
                     entered_date = date.today()
@@ -211,7 +228,8 @@ def voice_input_interface():
                         entered_amount = st.number_input("Jumlah (Rp)", min_value=0, value=amount, format="%d")
                     
                     entered_description = st.text_input("Deskripsi Item", value=description)
-                    entered_notes = st.text_area("Catatan Tambahan", value=notes)
+                    # Use the original voice input as notes
+                    entered_notes = st.text_area("Catatan Tambahan", value=notes, help="Catatan akan diisi otomatis dari input suara")
                     
                     # Use today's date
                     entered_date = date.today()
@@ -238,6 +256,20 @@ def voice_input_form():
     voice_tab, manual_tab = st.tabs(["🎤 Input Suara", "✏️ Input Manual"])
     
     with voice_tab:
+        # Add instructions for voice input
+        with st.expander("ℹ️ Petunjuk Input Suara", expanded=True):
+            st.markdown("""
+            **Cara menggunakan input suara:**
+            1. Tekan tombol "🔊 Rekam Suara" 
+            2. Sebutkan **JENIS TRANSAKSI** dan **NOMINAL UANG** dalam bahasa Indonesia:
+               - **Jenis transaksi** (pemasukan/pengeluaran/tabungan/hutang)
+               - **Jumlah uang** (misalnya: satu juta, seratus ribu, lima puluh ribu)
+            
+            **Contoh:** "pengeluaran, satu juta" atau "pemasukan, dua juta"
+            
+            ⚠️ Pastikan lingkungan sekitar cukup tenang dan suara Anda jelas terdengar.
+            """)
+        
         voice_data = voice_input_interface()
     
     with manual_tab:
