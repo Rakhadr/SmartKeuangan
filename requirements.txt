@@ -5,3 +5,6 @@ openai
 plotly>=5.0.0
 SpeechRecognition
 pyaudio
+opencv-python
+pytesseract
+Pillow

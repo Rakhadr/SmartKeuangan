@@ -9,6 +9,35 @@ pip install --upgrade pip
 # Install basic dependencies
 pip install -r requirements.txt
 
+# Install OpenCV for image processing
+pip install opencv-python
+
+# Install Tesseract for OCR (if not already installed)
+# On macOS with Homebrew: brew install tesseract
+# On Ubuntu/Debian: sudo apt-get install tesseract-ocr
+# On CentOS/RHEL: sudo yum install tesseract
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    if command -v brew &> /dev/null; then
+        echo "Installing tesseract via Homebrew..."
+        brew install tesseract
+    else
+        echo "Tesseract not found. Please install it manually: brew install tesseract"
+    fi
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    # Linux
+    if command -v apt-get &> /dev/null; then
+        echo "Installing tesseract via apt..."
+        sudo apt-get update
+        sudo apt-get install -y tesseract-ocr
+    elif command -v yum &> /dev/null; then
+        echo "Installing tesseract via yum..."
+        sudo yum install -y tesseract
+    else
+        echo "Please install tesseract for your system to use image input functionality."
+    fi
+fi
+
 # Install PyAudio (which may require system dependencies)
 # On some systems, PyAudio requires portaudio to be installed first
 if [[ "$OSTYPE" == "darwin"* ]]; then

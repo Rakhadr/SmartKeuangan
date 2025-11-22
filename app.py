@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
+from datetime import date
 import calendar
 
 # Try to import plotly with error handling for deployment environments
@@ -29,6 +30,18 @@ except ImportError as e:
     # Define a fallback function
     def voice_input_form():
         st.error("Modul voice input tidak tersedia.")
+        return None
+
+# Import image input with error handling
+try:
+    from utils.image_input import image_input_interface
+    IMAGE_INPUT_AVAILABLE = True
+except ImportError as e:
+    st.error(f"Gagal mengimpor modul image input: {e}")
+    IMAGE_INPUT_AVAILABLE = False
+    # Define a fallback function
+    def image_input_interface():
+        st.error("Modul image input tidak tersedia.")
         return None
 
 # ----------------------------
@@ -89,17 +102,6 @@ st.set_page_config(
 # Custom CSS to improve the UI
 st.markdown("""
 <style>
-    /* Hide Streamlit's default menu and footer */
-    #MainMenu {
-        visibility: hidden;
-    }
-    footer {
-        visibility: hidden;
-    }
-    header[data-testid="stHeader"] {
-        visibility: hidden;
-    }
-    
     .main-header {
         font-size: 1.5rem;
         color: #2c3e50;
@@ -251,6 +253,41 @@ else:
                 del st.session_state[key]
             st.rerun()
         
+        st.divider()  # Add separator before social media
+        
+        # Social Media Links
+        st.markdown("### 🌐 Follow Kami")
+        
+        # Create columns for social media icons
+        github_col, linkedin_col = st.columns(2)
+        with github_col:
+            st.markdown(
+                '<a href="https://github.com" target="_blank" style="text-decoration:none; color:white; display:block; background:#333; padding:8px; border-radius:6px; text-align:center; font-weight:bold;">'
+                '<span style="font-size:1.2em;">💻</span><br>Github</a>',
+                unsafe_allow_html=True
+            )
+        with linkedin_col:
+            st.markdown(
+                '<a href="https://linkedin.com" target="_blank" style="text-decoration:none; color:white; display:block; background:#0077B5; padding:8px; border-radius:6px; text-align:center; font-weight:bold;">'
+                '<span style="font-size:1.2em;">👔</span><br>LinkedIn</a>',
+                unsafe_allow_html=True
+            )
+        
+        # Additional social media links
+        twitter_col, instagram_col = st.columns(2)
+        with twitter_col:
+            st.markdown(
+                '<a href="https://twitter.com" target="_blank" style="text-decoration:none; color:white; display:block; background:#1DA1F2; padding:8px; border-radius:6px; text-align:center; font-weight:bold;">'
+                '<span style="font-size:1.2em;">🐦</span><br>Twitter</a>',
+                unsafe_allow_html=True
+            )
+        with instagram_col:
+            st.markdown(
+                '<a href="https://instagram.com" target="_blank" style="text-decoration:none; color:white; display:block; background:linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D); padding:8px; border-radius:6px; text-align:center; font-weight:bold;">'
+                '<span style="font-size:1.2em;">📱</span><br>Instagram</a>',
+                unsafe_allow_html=True
+            )
+        
         menu = st.session_state.menu
 
     # Main content area
@@ -335,10 +372,49 @@ else:
         st.markdown('<h1 class="sub-header">➕ Input Data Keuangan</h1>', unsafe_allow_html=True)
         kategori = st.session_state.kategori_pengguna
         
-        # Get input data using voice input form that includes both voice and manual options
-        input_data = voice_input_form()
+        # Create tabs for different input methods
+        voice_tab, image_tab, manual_tab = st.tabs(["🎤 Suara", "📸 Struk", "✏️ Manual"])
         
-        # If data was captured (either from voice or manual), save it
+        input_data = None
+        
+        with voice_tab:
+            # Get input data using voice input interface (without nested tabs)
+            from utils.voice_input import voice_input_interface
+            input_data = voice_input_interface()
+        
+        with image_tab:
+            if IMAGE_INPUT_AVAILABLE:
+                # Get input data using image input
+                image_data = image_input_interface()
+                if image_data:
+                    input_data = image_data
+            else:
+                st.error("Modul image input tidak tersedia.")
+        
+        with manual_tab:
+            with st.form("manual_input_main", clear_on_submit=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    tanggal = st.date_input("Tanggal", date.today())
+                    jenis = st.selectbox("Jenis Transaksi", ["Pemasukan", "Pengeluaran", "Tabungan", "Hutang", "Lainnya"])
+                with col2:
+                    nilai = st.number_input("Jumlah (Rp)", min_value=0, format="%d")
+                
+                item = st.text_input("Deskripsi Item")
+                catatan = st.text_area("Catatan Tambahan")
+                
+                manual_submit = st.form_submit_button("Simpan Transaksi 💰", use_container_width=True, type="primary")
+                
+                if manual_submit:
+                    input_data = {
+                        'date': tanggal,
+                        'type': jenis,
+                        'amount': nilai,
+                        'description': item,
+                        'notes': catatan
+                    }
+        
+        # If data was captured (from any method), save it
         if input_data:
             # Save the transaction
             save_transaction(
