@@ -366,12 +366,24 @@ else:
         input_data = None
         
         with image_tab:
-            if IMAGE_INPUT_AVAILABLE:
-                # Get input data using image input
-                image_data = image_input_interface()
-                if image_data:
-                    input_data = image_data
-            else:
+            # Check if image input is available
+            try:
+                from utils.image_input import IMAGE_INPUT_AVAILABLE, image_input_interface
+                if IMAGE_INPUT_AVAILABLE:
+                    # Get input data using image input
+                    image_data = image_input_interface()
+                    if image_data:
+                        input_data = image_data
+                else:
+                    # Import specific check variables
+                    from utils.image_input import CV2_AVAILABLE, TESSERACT_AVAILABLE
+                    if not CV2_AVAILABLE:
+                        st.warning("Modul OpenCV (cv2) tidak tersedia. Fitur pemrosesan struk terbatas.")
+                        st.info("Fitur ini membutuhkan OpenCV untuk prapemrosesan gambar dan Tesseract OCR untuk ekstraksi teks.")
+                    elif not TESSERACT_AVAILABLE:
+                        st.warning("Modul OCR (pytesseract) tidak tersedia. Fitur pemrosesan struk terbatas.")  
+                        st.info("Untuk menggunakannya, install pytesseract dan Tesseract OCR di sistem Anda.")
+            except ImportError:
                 st.error("Modul image input tidak tersedia.")
         
         with manual_tab:

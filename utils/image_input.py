@@ -3,7 +3,6 @@ Image-based receipt processing module for Keuangan-Pintar
 This module uses OCR and ML to extract financial information from receipts
 """
 import streamlit as st
-import cv2
 import numpy as np
 from PIL import Image
 import re
@@ -11,23 +10,37 @@ from datetime import datetime, date
 import tempfile
 import os
 
-# Try to import pytesseract with error handling
+# Try to import cv2 and pytesseract with error handling for deployment environments
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    cv2 = None
+    CV2_AVAILABLE = False
+
 try:
     import pytesseract
     TESSERACT_AVAILABLE = True
-    IMAGE_INPUT_AVAILABLE = True
 except ImportError:
+    pytesseract = None
     TESSERACT_AVAILABLE = False
-    IMAGE_INPUT_AVAILABLE = False
+
+# Image input availability depends on both cv2 and pytesseract
+IMAGE_INPUT_AVAILABLE = CV2_AVAILABLE and TESSERACT_AVAILABLE
 
 def extract_financial_data_from_image(image_path):
     """
     Extract financial data from receipt image using OCR
     """
-    if not TESSERACT_AVAILABLE:
-        st.error("Modul OCR (pytesseract) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
-        st.info("Untuk menggunakannya, install pytesseract dan Tesseract OCR di sistem Anda.")
-        return None, None, None, None
+    if not IMAGE_INPUT_AVAILABLE:
+        if not CV2_AVAILABLE:
+            st.error("Modul OpenCV (cv2) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
+            st.info("Fitur ini membutuhkan OpenCV dan Tesseract OCR untuk berfungsi.")
+            return None, None, None, None, None
+        elif not TESSERACT_AVAILABLE:
+            st.error("Modul OCR (pytesseract) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
+            st.info("Untuk menggunakannya, install pytesseract dan Tesseract OCR di sistem Anda.")
+            return None, None, None, None, None
     
     try:
         # Check if tesseract command is available
@@ -38,12 +51,12 @@ def extract_financial_data_from_image(image_path):
             st.error("Tesseract OCR command line tool tidak ditemukan. Silakan install Tesseract di sistem Anda.")
             st.info("Pada macOS: brew install tesseract")
             st.info("Pada Ubuntu: sudo apt-get install tesseract-ocr")
-            return None, None, None, None
+            return None, None, None, None, None
         
         # Load image
         img = cv2.imread(image_path)
         if img is None:
-            return None, None, None, None
+            return None, None, None, None, None
         
         # Preprocess image for better OCR
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -69,11 +82,12 @@ def extract_financial_data_from_image(image_path):
         transaction_type = determine_transaction_type(text)
         date_from_receipt = extract_date_from_text(text)
         
-        return transaction_type, amount, description, date_from_receipt
+        # Return with category (using "Struk" as the category for receipt-based entries)
+        return transaction_type, amount, description, "Struk", date_from_receipt
     
     except Exception as e:
         st.error(f"Error processing image: {str(e)}")
-        return None, None, None, None
+        return None, None, None, None, None
 
 def extract_amount_from_text(text):
     """
@@ -246,7 +260,7 @@ def image_input_interface():
         try:
             # Extract financial data from the image
             with st.spinner("Membaca informasi dari struk..."):
-                transaction_type, amount, description, extracted_date = extract_financial_data_from_image(temp_path)
+                transaction_type, amount, description, category, extracted_date = extract_financial_data_from_image(temp_path)
             
             if transaction_type is not None:
                 st.success("Berhasil membaca informasi dari struk!")
