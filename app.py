@@ -20,18 +20,6 @@ from utils.helpers import init_db, save_transaction, get_transactions, verify_us
 from utils.export import export_to_csv, export_to_pdf
 from utils.ai import generate_financial_advice
 
-# Import voice input with error handling
-try:
-    from utils.voice_input import voice_input_form
-    VOICE_INPUT_AVAILABLE = True
-except ImportError as e:
-    st.error(f"Gagal mengimpor modul voice input: {e}")
-    VOICE_INPUT_AVAILABLE = False
-    # Define a fallback function
-    def voice_input_form():
-        st.error("Modul voice input tidak tersedia.")
-        return None
-
 # Import image input with error handling
 try:
     from utils.image_input import image_input_interface
@@ -372,15 +360,10 @@ else:
         st.markdown('<h1 class="sub-header">➕ Input Data Keuangan</h1>', unsafe_allow_html=True)
         kategori = st.session_state.kategori_pengguna
         
-        # Create tabs for different input methods
-        voice_tab, image_tab, manual_tab = st.tabs(["🎤 Suara", "📸 Struk", "✏️ Manual"])
+        # Create tabs for different input methods - removing voice tab
+        image_tab, manual_tab = st.tabs(["📸 Struk", "✏️ Manual"])
         
         input_data = None
-        
-        with voice_tab:
-            # Get input data using voice input interface (without nested tabs)
-            from utils.voice_input import voice_input_interface
-            input_data = voice_input_interface()
         
         with image_tab:
             if IMAGE_INPUT_AVAILABLE:
