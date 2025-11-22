@@ -10,20 +10,24 @@ from datetime import datetime, date
 import tempfile
 import os
 
-# Try to import cv2 and pytesseract with error handling for deployment environments
-try:
-    import cv2
-    CV2_AVAILABLE = True
-except ImportError:
-    cv2 = None
-    CV2_AVAILABLE = False
+# Check for cv2 and pytesseract availability by trying to import them
+# Only import when actually needed, not at module level to avoid libGL.so.1 errors
+def check_cv2_availability():
+    try:
+        import cv2
+        return True
+    except ImportError:
+        return False
 
-try:
-    import pytesseract
-    TESSERACT_AVAILABLE = True
-except ImportError:
-    pytesseract = None
-    TESSERACT_AVAILABLE = False
+def check_tesseract_availability():
+    try:
+        import pytesseract
+        return True
+    except ImportError:
+        return False
+
+CV2_AVAILABLE = check_cv2_availability()
+TESSERACT_AVAILABLE = check_tesseract_availability()
 
 # Image input availability depends on both cv2 and pytesseract
 IMAGE_INPUT_AVAILABLE = CV2_AVAILABLE and TESSERACT_AVAILABLE
@@ -32,15 +36,41 @@ def extract_financial_data_from_image(image_path):
     """
     Extract financial data from receipt image using OCR
     """
-    if not IMAGE_INPUT_AVAILABLE:
-        if not CV2_AVAILABLE:
+    # Check if cv2 and pytesseract are available at runtime
+    global cv2, pytesseract
+    
+    # Import cv2 and pytesseract dynamically to prevent import errors during startup
+    if 'cv2' not in globals() or globals()['cv2'] is None:
+        try:
+            import cv2
+            globals()['cv2'] = cv2
+        except ImportError:
             st.error("Modul OpenCV (cv2) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
             st.info("Fitur ini membutuhkan OpenCV dan Tesseract OCR untuk berfungsi.")
             return None, None, None, None, None
-        elif not TESSERACT_AVAILABLE:
+    else:
+        cv2 = globals()['cv2']
+        
+    if 'pytesseract' not in globals() or globals()['pytesseract'] is None:
+        try:
+            import pytesseract
+            globals()['pytesseract'] = pytesseract
+        except ImportError:
             st.error("Modul OCR (pytesseract) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
             st.info("Untuk menggunakannya, install pytesseract dan Tesseract OCR di sistem Anda.")
             return None, None, None, None, None
+    else:
+        pytesseract = globals()['pytesseract']
+    
+    # Verify both modules are available now
+    if cv2 is None or pytesseract is None:
+        if cv2 is None:
+            st.error("Modul OpenCV (cv2) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
+            st.info("Fitur ini membutuhkan OpenCV dan Tesseract OCR untuk berfungsi.")
+        if pytesseract is None:
+            st.error("Modul OCR (pytesseract) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
+            st.info("Untuk menggunakannya, install pytesseract dan Tesseract OCR di sistem Anda.")
+        return None, None, None, None, None
     
     try:
         # Check if tesseract command is available
@@ -217,14 +247,18 @@ def image_input_interface():
     """
     Interface for image-based receipt input
     """
-    if not TESSERACT_AVAILABLE:
-        st.warning("Modul OCR (pytesseract) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
-        st.info("Untuk menggunakannya:")
-        st.info("1. Install pytesseract: pip install pytesseract")
-        st.info("2. Install Tesseract OCR di sistem Anda:")
-        st.info("   - macOS: brew install tesseract")
-        st.info("   - Ubuntu: sudo apt-get install tesseract-ocr")
-        st.info("   - CentOS: sudo yum install tesseract")
+    if not IMAGE_INPUT_AVAILABLE:
+        if not CV2_AVAILABLE:
+            st.warning("Modul OpenCV (cv2) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
+            st.info("Fitur ini membutuhkan OpenCV dan Tesseract OCR untuk berfungsi.")
+        elif not TESSERACT_AVAILABLE:
+            st.warning("Modul OCR (pytesseract) tidak tersedia. Fitur pemrosesan struk tidak dapat digunakan.")
+            st.info("Untuk menggunakannya:")
+            st.info("1. Install pytesseract: pip install pytesseract")
+            st.info("2. Install Tesseract OCR di sistem Anda:")
+            st.info("   - macOS: brew install tesseract")
+            st.info("   - Ubuntu: sudo apt-get install tesseract-ocr")
+            st.info("   - CentOS: sudo yum install tesseract")
         return None
     
     st.subheader("📸 Input Struk untuk Data Keuangan")
